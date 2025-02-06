@@ -4,11 +4,48 @@ const captainModel = require('../models/captain.model');
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const blacklistTokenModel = require('../models/blacklistToken.model');
 
 // Registration function (you can add your registration logic)
 module.exports.registerCaptain = async (req, res, next) => {
-  // Your registration logic here...
-  res.status(201).json({ message: 'Captain registered successfully' });
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { fullname, email, password, vehicle } = req.body;
+
+  try {
+    // Check if captain already exists
+    const existingCaptain = await captainModel.findOne({ email });
+    if (existingCaptain) {
+      return res.status(400).json({ message: 'Captain already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await captainModel.hashPassword(password);
+
+    // Create new captain
+    const captain = await captainModel.create({
+      fullname,
+      email,
+      password: hashedPassword,
+      vehicle
+    });
+
+    // Generate token and set cookie
+    const token = captain.generateAuthToken();
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'false',
+      sameSite: 'lax'
+    });
+
+    res.status(201).json({ message: 'Captain registered successfully', captain });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
 
 // Login function (if you intend to support login)
@@ -45,8 +82,9 @@ module.exports.getCaptainProfile = async (req, res, next) => {
 };
 
 module.exports.logoutCaptain = async (req, res, next) => {
-  // Example logout logic: clear the token cookie.
-  // You might want to implement additional logic such as blacklisting the token.
+  const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+  await blacklistTokenModel.create({token});
   res.clearCookie('token');
   res.status(200).json({ message: 'Logout successfully' });
 };
+
