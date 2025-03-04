@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const connectToDb = require('./db/db');
 const userRoutes =require('./routes/user.routes')
 const captainRoutes=require('./routes/captain.routes')
+const mapsRoutes = require('./routes/maps.routes');
 
 
 connectToDb();
@@ -24,7 +25,15 @@ app.get('/', (req, res) => {
 
 app.use('/users',userRoutes);
 app.use('/captains',captainRoutes);
+app.use('/maps', mapsRoutes);
+// After importing routes
+console.log('Registered routes:');
+console.log('- /users');
+console.log('- /captains');
+console.log('- /maps');
 
+// Before starting server
+console.log('Maps routes:', mapsRoutes.stack); // Show registered map routes
 
 
 
